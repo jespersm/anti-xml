@@ -111,7 +111,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
       case _ => cbf(Vector()).result
     }
     
-    (this \ selector) ++ recursive
+    cbf.concat(this \ selector, recursive)
   }
   
   def toVector = nodes
@@ -157,6 +157,19 @@ object Group {
             def parent = error("No zipper context available")
           }
         }
+      }
+      
+      override def concat[A2 <: A](left: Traversable[A2], right: Traversable[A2])(implicit cbf: CanBuildFrom[Traversable[_], A2, Zipper[A]]): Zipper[A] = (left, right) match {
+        case (left: Zipper[A], right: Zipper[A]) => {
+          val combination: Vector[A] = left.toVector.++(right.toVector)(Vector.canBuildFrom[A])   // making this implicit triggers a compiler bug that causes infinite compilation times
+          
+          new Group[A](combination) with Zipper[A] {
+            val map = left.map      // TODO translate
+            def parent = left.parent    // TODO do...something
+          }
+        }
+          
+        case _ => super.concat(left, right)(cbf)
       }
     }
   }
